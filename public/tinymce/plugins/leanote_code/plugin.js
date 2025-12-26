@@ -8,6 +8,15 @@ tinymce.PluginManager.add('leanote_code', function(editor, url) {
 	var me = this;
 	var ed = editor;
 
+	//处理由ace代码转为tinymce后，新增的零宽字符
+	function stripZeroWidth(s) {
+		return String(s || '')
+			// 直接字符
+			.replace(/[\uFEFF\u200B\u2060]/g, '')
+			// 万一已经被实体化了，也一起干掉
+			.replace(/&#xFEFF;|&#65279;/gi, '')
+			.replace(/&ZeroWidthSpace;|&#x200B;|&#8203;/gi, '');
+	}
 	// clearUndo没必要, 支持
 	// depreciated
 	function clearUndo() {
@@ -112,12 +121,12 @@ tinymce.PluginManager.add('leanote_code', function(editor, url) {
 				$pre.replaceWith("<p>" + val + "</p>");
 			} else {
 				try {
-					text = $.trim($(selectedContent).text());
+					text = stripZeroWidth($(selectedContent).text());
 				} catch(e) {
 				}
 				// 可能不是一个完整的html, 可能是一个文本此时.html()无
 				if(!text) {
-					text = $.trim(selectedContent);
+					text = stripZeroWidth(selectedContent);
 				}
 				var pre = null;
 				var id = LeaAce.getAceId();
@@ -161,6 +170,7 @@ tinymce.PluginManager.add('leanote_code', function(editor, url) {
 
 		if(aceEditor) {
 			var val = aceEditor.getValue();
+			val = stripZeroWidth(val).replace(/\n+$/g, ''); // 防止行尾零宽字符
 			// TODO 实体转成&lt;&rg;
 			val = val.replace(/</g, "&lt;");
 			val = val.replace(/>/g, "&gt;");
@@ -173,6 +183,7 @@ tinymce.PluginManager.add('leanote_code', function(editor, url) {
 				// 表示在pre下, 但不是aceEditor, toggle后的
 				var $pre = $(node);
 				var val = $pre.html();
+				val = stripZeroWidth(val); // 防止行尾零宽字符
 				if(val) {
 					val = val.replace(/\n/g, "<br />");
 				}
