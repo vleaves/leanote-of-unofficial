@@ -951,6 +951,42 @@ $(function() {
 	Pjax.init();
 });
 
+function stripTailZeroWidthFromPre(preEl) {
+	if (!preEl) return;
+
+	// 可选：移除 TinyMCE 书签节点（如果存在）
+	var bm = preEl.querySelectorAll('span[data-mce-type="bookmark"], span.mce-bookmark');
+	for (var i = 0; i < bm.length; i++) {
+		bm[i].parentNode && bm[i].parentNode.removeChild(bm[i]);
+	}
+
+	// 收集所有 text node
+	var walker = document.createTreeWalker(preEl, NodeFilter.SHOW_TEXT, null, false);
+	var nodes = [];
+	while (walker.nextNode()) {
+		nodes.push(walker.currentNode);
+	}
+
+	// 从最后一个 text node 往前，只剥离“末尾”的零宽占位符
+	for (var j = nodes.length - 1; j >= 0; j--) {
+		var node = nodes[j];
+		var before = node.nodeValue || '';
+		var after = before.replace(/[\uFEFF\u200B\u2060]+$/g, '');
+
+		if (after !== before) {
+			if (after.length > 0) {
+				node.nodeValue = after;
+			} else if (node.parentNode) {
+				node.parentNode.removeChild(node);
+			}
+			// 继续往前检查：占位符可能分散在多个 text node 的尾部
+			continue;
+		}
+
+		// 当前最后 text node 没有末尾占位符，说明尾部已干净，结束
+		break;
+	}
+}
 //----------
 // aceEditor
 LeaAce = {
@@ -1014,6 +1050,8 @@ LeaAce = {
 
 			$pre.removeClass('ace-to-pre');
 			$pre.attr("contenteditable", false); // ? 避免tinymce编辑
+
+			stripTailZeroWidthFromPre($pre.get(0)); // 去除末尾可能的tinymce光标占位符FEFF/ZWSP
 			var aceEditor = ace.edit(id);
 
 			aceEditor.container.style.lineHeight = 1.5;
