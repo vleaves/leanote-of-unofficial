@@ -41313,9 +41313,50 @@ define("tinymce/pasteplugin/Clipboard", [
 						// 之前用insertRawContent()有问题, ace paste下, TODO
 						// editor.insertContent(text);
 					} else {
+						function preprocessHtmlForPre(htmlStr) {
+							try {
+								var $wrap = $("<div>" + htmlStr + "</div>");
+								$wrap.find("pre").each(function () {
+									var pre = this;
+									// 1) 找到 pre 内全部 br（不管 br 在不在 span 里）
+									var brs = pre.querySelectorAll ? pre.querySelectorAll("br") : $(pre).find("br").toArray();
+									for (var i = 0; i < brs.length; i++) {
+										var br = brs[i];
+										br.parentNode.insertBefore(document.createTextNode("\n"), br);
+										br.parentNode.removeChild(br);
+									}
+
+									// 2) 处理 “每行一个 <code>” 的场景：
+									//    在相邻 code 元素之间插入 "\n"
+									//    （不改 code 内部结构，不改属性，不改其它标签）
+									var codes = pre.querySelectorAll ? pre.querySelectorAll(":scope > code") : $(pre).children("code").toArray();
+									if (codes && codes.length > 1) {
+										for (var j = 0; j < codes.length - 1; j++) {
+											var code = codes[j];
+											var next = codes[j + 1];
+
+											// 如果 code 和 next 中间已经有换行/文本，就不重复插
+											var between = code.nextSibling;
+											var need = true;
+											if (between && between.nodeType === 3) { // Text node
+												if (between.nodeValue && between.nodeValue.indexOf("\n") !== -1) need = false;
+											}
+											if (need) {
+												pre.insertBefore(document.createTextNode("\n"), next);
+											}
+										}
+									}
+
+								});
+								return $wrap.html();
+							} catch (e) {
+								return htmlStr;
+							}
+						}
+
 						// life 这里得到图片img, 复制到leanote下
 						if(!self.copyImage) {
-							editor.insertContent(html);
+							editor.insertContent(preprocessHtmlForPre(html));
 						} else {
 							var urlPrefix = UrlPrefix;
 							var needCopyImages = {}; // src => [id1,id2]
@@ -41338,14 +41379,14 @@ define("tinymce/pasteplugin/Clipboard", [
 										}
 									}
 								}
-								editor.insertContent($html.html());
+								editor.insertContent(preprocessHtmlForPre($html.html()));
 
 								for(var src in needCopyImages) {
 									var ids = needCopyImages[src];
 									copyImage(src, ids);
 								}
 							} catch(e) {
-								editor.insertContent(html);
+								editor.insertContent(preprocessHtmlForPre(html));
 							}
 						}
 					}
