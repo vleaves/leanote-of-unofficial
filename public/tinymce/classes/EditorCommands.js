@@ -628,6 +628,9 @@ define("tinymce/EditorCommands", [
 						node = node.parentNode;
 					}
 
+					// life ace: flush ace -> pre
+					var __leanoteNeedReAce = LeaAce.allToPreInNode(parentNode);
+
 					// Get the outer/inner HTML depending on if we are in the root and parser and serialize that
 					value = parentNode == rootNode ? rootNode.innerHTML : dom.getOuterHTML(parentNode);
 					value = serializer.serialize(
@@ -642,11 +645,7 @@ define("tinymce/EditorCommands", [
 					// life ace
 					// 插入的时候把<pre>内的标签全清掉
 					// life 把<pre></pre>间的代码拿出, 去掉标签<span>之类的
-					// console.log(value);
-					// <p> </p><pre>xxx<span id="mce_marker" data-mce-type="bookmark">﻿​</span></pre>
-					// <p> </p><pre >xxx﻿​</pre>
-					// console.log('life');
-					// console.log(value);
+					// <span id="mce_marker" data-mce-type="bookmark"><U+FEFF><U+200B></span>，这里有2个隐藏字符
 					value = value.replace(/<pre([^>]*?)>([\s\S]*?)<\/pre>/g, function(v, v1, v2) {
 						// v == "<pre>a, b, c</pre>"
 						var hasBookmark = false;
@@ -701,6 +700,11 @@ define("tinymce/EditorCommands", [
 				// Remove the marker node and set the new range
 				dom.remove(marker);
 				selection.setRng(rng);
+
+				// life: flush pre->ace
+				if (window.LeaAce && LeaAce.allToAceInNode) {
+					LeaAce.allToAceInNode(editor.getBody());
+				}
 
 				// Dispatch after event and add any visual elements needed
 				editor.fire('SetContent', args);

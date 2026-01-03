@@ -1219,6 +1219,50 @@ LeaAce = {
 		}, 10);
 	},
 
+	// life ace: scoped conversion used by TinyMCE invalid insert branch
+	allToPreInNode: function(scopeNode) {
+		if(!this.canAndIsAce()) {
+			return false;
+		}
+		var me = this;
+		var $scope = $(scopeNode || tinymce.activeEditor.getBody());
+		var pres = $scope.find('pre.ace_editor');
+		var changed = false;
+		for(var i = 0; i < pres.length; ++i) {
+			var pre = pres.eq(i);
+			if(me.isInAce(pre)) {
+				changed = true;
+				me.aceToPre(pre, false);
+			}
+		}
+		return changed;
+	},
+
+	// life ace: re-init only the frozen <pre> blocks (pre.ace-to-pre) after DOM rewrite
+	allToAceInNode: function(scopeNode) {
+		if(!this.canAndIsAce()) {
+			return;
+		}
+		var me = this;
+		var $scope = $(scopeNode || tinymce.activeEditor.getBody());
+		var pres = $scope.find('pre.ace-to-pre');
+		for(var i = 0; i < pres.length; ++i) {
+			var pre = pres.eq(i);
+
+			// 已经是 Ace DOM / 已经有实例就跳过（避免二次 init 导致 XXXXX）
+			if(pre.find('.ace_content, .ace_layer, .ace_scroller, textarea.ace_text-input').length) {
+				continue;
+			}
+			if(me.isInAce(pre)) {
+				continue;
+			}
+			var id = pre.attr('id') || me.getAceId();
+			pre.attr('id', id);
+			me.initAce(id, null, true);
+		}
+	},
+
+
 	undo: function(editor) {
 		if(!this.canAndIsAce()) {
 			return;
@@ -1368,7 +1412,7 @@ LeaAce = {
 			return;
 		}
 		var $pre = $(pre);
-		var id = this.getAceId();
+		var id = $pre.attr('id') || this.getAceId();
 		$pre.attr('id', id);
 		var editor = this.initAce(id, null, true);
 		if(editor) {
