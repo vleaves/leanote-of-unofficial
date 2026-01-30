@@ -235,7 +235,7 @@ define("tinymce/pasteplugin/Clipboard", [
 	"tinymce/pasteplugin/Utils"
 ], function(Env, VK, Utils) {
 	return function(editor) {
-		var self = this, pasteBinElm, lastRng, keyboardPasteTimeStamp = 0;
+		var self = this, pasteBinElm, lastRng;
 		var pasteBinDefaultContent = '%MCEPASTEBIN%', keyboardPastePlainTextState;
 
 		/**
@@ -542,8 +542,6 @@ define("tinymce/pasteplugin/Clipboard", [
 				// Prevent undoManager keydown handler from making an undo level with the pastebin in it
 				e.stopImmediatePropagation();
 
-				keyboardPasteTimeStamp = new Date().getTime();
-
 				// IE doesn't support Ctrl+Shift+V and it doesn't even produce a paste event
 				// so lets fake a paste event and let IE use the execCommand/dataTransfer methods
 				if (Env.ie && keyboardPastePlainTextState) {
@@ -607,6 +605,15 @@ define("tinymce/pasteplugin/Clipboard", [
 			return false;
 		}
 
+		// 判断 clipboardHtml 非空且看起来像有效 fragment
+		function isValidHtmlFragment(html) {
+			if (!html) return false;
+			// CF_HTML: 有 StartFragment 就足够说明是富文本片段
+			if (/StartFragment/i.test(html)) return true;
+			// 兜底：只要包含任意标签，就认为是 HTML 片段
+			return /<\s*[a-zA-Z][\w:-]*\b[^>]*>/.test(html);
+		}
+
 		// 上传图片
 		// 已过时, 不用, pasteImage在editor_drop_paste.js中用
 		function pasteImage(event) {
@@ -638,7 +645,7 @@ define("tinymce/pasteplugin/Clipboard", [
 					var dom = editor.dom;
 					var d = {};
 					d.id = '__mcenew';
-					d.src = "http://leanote.com/images/loading-24.gif"; // 写死了
+					d.src = "/images/loading-24.gif";
 					editor.insertContent(dom.createHTML('img', d));
 					var imgElm = dom.get('__mcenew');
 					$.ajax({url: "/file/pasteImage", contentType:false, processData:false , data: c, type: "POST"}
@@ -685,12 +692,13 @@ define("tinymce/pasteplugin/Clipboard", [
 			}
 
 			var clipboardContent = getClipboardContent(e);
-			var isKeyBoardPaste = new Date().getTime() - keyboardPasteTimeStamp < 100;
+			var clipHtmlValid = isValidHtmlFragment(clipboardContent['text/html']);
 			var plainTextMode = self.pasteFormat == "text" || keyboardPastePlainTextState;
 
-			// Not a keyboard paste prevent default paste and try to grab the clipboard contents using different APIs
-			if (!isKeyBoardPaste) {
-				e.preventDefault();
+			// prevent default paste and try to grab the clipboard contents using different APIs
+			var hasPasteBin = !!pasteBinElm;
+			if (clipHtmlValid || !hasPasteBin) {
+				e.preventDefault(); // 阻止浏览器的默认粘贴动作，防止粘贴2遍
 			}
 
 			// Try IE only method if paste isn't a keyboard paste
@@ -716,13 +724,13 @@ define("tinymce/pasteplugin/Clipboard", [
 
 				removePasteBin();
 
-				if (html == pasteBinDefaultContent || !isKeyBoardPaste) {
+				if (html == pasteBinDefaultContent || clipHtmlValid) {
 					html = clipboardContent['text/html'] || clipboardContent['text/plain'] || pasteBinDefaultContent;
 
 					if (html == pasteBinDefaultContent) {
-						if (!isKeyBoardPaste) {
+						//if (!isKeyBoardPaste) {
 							// editor.windowManager.alert('Please use Ctrl+V/Cmd+V keyboard shortcuts to paste contents.');
-						}
+						//}
 						return;
 					}
 				}

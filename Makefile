@@ -28,8 +28,8 @@ gulp:
 release: gulp
 	@rm -rf release/
 	CGO_ENABLED=0 revel build . release/
-	rsync -azr --delete --delete-before --exclude github.com/wiselike/leanote2/conf/app.conf --exclude github.com/wiselike/leanote2/public/upload --exclude github.com/wiselike/leanote2/mongodb_backup -e 'ssh -p 22' release/src/ root@192.168.0.12:/root/dockers/leanote/leanote2/src
-	rsync -azr release/leanote2  -e 'ssh -p 22' root@192.168.0.12:/root/dockers/leanote/leanote2/leanote2
+	rsync -azr --delete --delete-before --exclude github.com/wiselike/leanote2/conf/app.conf --exclude github.com/wiselike/leanote2/public/upload --exclude github.com/wiselike/leanote2/mongodb_backup -e 'ssh -p 22' release/src/ root@192.168.0.12:/root/dockers/leanote2/leanote2/src
+	rsync -azr release/leanote2  -e 'ssh -p 22' root@192.168.0.12:/root/dockers/leanote2/leanote2/leanote2
 	rm -rf release/
 	ssh -p 22 root@192.168.0.12 "docker restart leanote2"
 
